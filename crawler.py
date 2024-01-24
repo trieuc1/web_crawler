@@ -1,6 +1,7 @@
 import logging
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from lxml import html
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,17 @@ class Crawler:
 
         Suggested library: lxml
         """
-        outputLinks = []
-        return outputLinks
+        url = url_data.get('url')
+        content = url_data.get('content')
+        if url is not None and content is not None:
+            # parses html content
+            tree = html.fromstring(content)
+            # gets all relative and absolute links
+            all_links = tree.xpath("//a/@href")
+            # turns every relative link into absolute
+            absolute_urls =[urljoin(url, link) for link in all_links]
+            return absolute_urls
+
 
     def is_valid(self, url):
         """
