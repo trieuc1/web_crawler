@@ -1,7 +1,7 @@
 import logging
 import re
 from urllib.parse import urlparse, urljoin
-from lxml import html
+from lxml import html, etree
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,8 @@ class Crawler:
     def extract_next_links(self, url_data):
         """
         The url_data coming from the fetch_url method will be given as a parameter to this method. url_data contains the
-        fetched url, the url content in binary format, and the size of the content in bytes. This method should return a
+        fetched url, the url content in binary format, and the size of the content in bytes. 
+        This method should return a
         list of urls in their absolute form (some links in the content are relative and needs to be converted to the
         absolute form). Validation of links is done later via is_valid method. It is not required to remove duplicates
         that have already been fetched. The frontier takes care of that.
@@ -42,14 +43,20 @@ class Crawler:
         """
         url = url_data.get('url')
         content = url_data.get('content')
+
         if url is not None and content is not None:
             # parses html content
-            tree = html.fromstring(content)
-            # gets all relative and absolute links
-            all_links = tree.xpath("//a/@href")
-            # turns every relative link into absolute
-            absolute_urls =[urljoin(url, link) for link in all_links]
-            return absolute_urls
+            try:
+                tree = html.fromstring(content, '')
+                # gets all relative and absolute links
+                all_links = tree.xpath("//a/@href")
+                # turns every relative link into absolute
+                absolute_urls =[urljoin(url, link) for link in all_links]
+                return absolute_urls
+            except (etree.ParserError):
+                return []
+        else:
+            return []
 
 
     def is_valid(self, url):
