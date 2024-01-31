@@ -1,6 +1,6 @@
 import logging
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,74 @@ class Crawler:
                 return []
         else:
             return []
+    
+    def count_num(self, s):
+        num = 0
+        for char in s:
+            if char.isdigit():
+                num += 1
+        return num
+
+    def is_valid_path(self, parsed_url):
+        """
+        where parsed_url = urlparse(url) object
+        """
+        # if there is not path
+        if parsed_url.path == "":
+            print("eller")
+            return True
+        
+        # gets url pieces w/o query and fragment
+        new_url_tuple = (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
+
+        # puts those url pieces together
+        clean_url = urlunparse(new_url_tuple)
+        clean_url = urlparse(clean_url)
+
+        # get path
+        folder = ''
+        file = ''
+        path = clean_url.path
+        path_lst = path.split('/')
+        clean_path_lst = [i for i in path_lst if (i != "")]
+        last_path = clean_path_lst[len(clean_path_lst) - 1]
+        print(clean_path_lst)
+        print(last_path)
+        # get file and folder from path
+        if "." in last_path:
+            if len(clean_path_lst) > 1:
+                folder = clean_path_lst[-2]
+                file = last_path.split('.')[0]
+                print(folder)
+            else:
+                file = last_path.split('.')[0]
+                folder = ""
+        else:
+            file = ""
+        
+        # check folder
+        if folder != "" and file == "":
+            if folder.isalnum():
+                num = self.count_num(folder)
+                if num / len(folder) >= 0.5:
+                    return False
+                else:
+                    return True
+            return False
+        if folder != "" and file != "":
+            print("up")
+            if folder.isalnum():
+                num = self.count_num(folder)
+                if num / len(folder) >= 0.5:
+                    return False
+                else:
+                    num = self.count_num(file)
+                    if num / len(file) >= 0.5:
+                        return False
+                    else:
+                        return True
+            return False
+        return False
 
 
     def is_valid(self, url):
@@ -66,7 +134,25 @@ class Crawler:
         in this method
         """
         parsed = urlparse(url)
+        # slug = parsed.
+        query_params = parse_qsl(parsed.query)
         if parsed.scheme not in set(["http", "https"]):
+            return False
+        # not a url
+        if " " in url:
+            return False
+        # reducing links based on len of the links ~79 avg len of all links
+        if len(url) > 80:
+            return False
+        # reducing links through parameters
+        if len(query_params) > 5:
+            return False
+        if not self.is_valid_path(parsed):
+            return False
+        # reducing links based on url fragments
+        if parsed.fragment in ["content-main"]:
+            return False
+        if "id=" in parsed.path.split('/')[-1]:
             return False
         try:
             return ".ics.uci.edu" in parsed.hostname \
