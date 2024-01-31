@@ -3,7 +3,7 @@ import re
 from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
 from pathlib import Path
-import requests
+from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 class Crawler:
@@ -15,6 +15,9 @@ class Crawler:
     def __init__(self, frontier, corpus):
         self.frontier = frontier
         self.corpus = corpus
+        self.token_dict = {}
+        self.blacklist = []
+        self.similarity_threshold = 0.90
 
     def start_crawling(self):
         """
@@ -23,21 +26,17 @@ class Crawler:
         """
         
         Path.touch("url_links.txt")
-        with Path.open("ur_link.txt", "a") as txt:
+        Path.touch("removed.txt")
+        with Path.open("url_links.txt", "a", encoding="utf-8") as txt:
             while self.frontier.has_next_url():
                 url = self.frontier.get_next_url()
-                logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
+                #logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
 
                 url_data = self.corpus.fetch_url(url)
                 # Write links to txt
-                
                 txt.write(url + "\n")
                 for next_link in self.extract_next_links(url_data):
-                    if self.is_valid(next_link):
-                        #if a link is valid, it will grab all the words in the file, returns it as a list
-                        all_words_in_file = self.words_in_link(next_link)
-                        #print(all_words_in_file)
-
+                    if self.is_valid(next_link, url_data):
                         if self.corpus.get_file_name(next_link) is not None:
                             self.frontier.add_url(next_link)
 
@@ -58,7 +57,7 @@ class Crawler:
         if url is not None and content is not None:
             # parses html content
             try:
-                tree = html.fromstring(content, '')
+                tree = html.fromstring(content)
                 # gets all relative and absolute links
                 all_links = tree.xpath("//a/@href")
                 # turns every relative link into absolute
@@ -137,27 +136,15 @@ class Crawler:
             return False
         return False
 
-    def words_in_link(self, url_content):
+    def extract_words_generator(self, url_data):
         """
         Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
         This function returns the list of words in that file.
         """
-        response = requests.get(url_content)
-        tree = html.fromstring(response.content)
-        text_elements = tree.xpath('//p | //h1 | //h2 | //h3 | //h4 | //h5 | //h6 | //span | //div')
-        words = []
-
-        for element in text_elements:
-            if element.text_content():
-                list_of_words = re.split(r'[\s\t\r\n]+', element.text_content())
-                for word in list_of_words:
-                    if ((not word.isspace()) and (len(word) >= 1)):
-                        words.append(word)
-        
-        return words
+        return BeautifulSoup(url_data["content"]).get_text()
             
 
-    def is_valid(self, url):
+    def is_valid(self, url, url_data):
         """
         Function returns True or False based on whether the url has to be fetched or not. This is a great place to
         filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
@@ -186,17 +173,45 @@ class Crawler:
             return False
         try:
             if ( ".ics.uci.edu" in parsed.hostname \
-                   and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
+                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
                                     + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
                                     + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
                                     + "|thmx|mso|arff|rtf|jar|csv" \
                                     + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf)$", parsed.path.lower())):
-                return True
+                pass
             else:
                 return False
-            
+            if url in self.blacklist:
+                return False
+            new_token = {
+                "content": {}
+            }
+            for word in self.extract_words_generator(url_data):
+                if word not in new_token["content"]:
+                    new_token["content"][word] = 1
+                else:
+                    new_token["content"][word] += 1
+            if parsed.path in self.token_dict:
+                for token in self.token_dict[parsed.path]:
+                    # if path already in token dict, check similarity
+                    count = 0
+                    for key, value in token["content"].items():
+                        if key in new_token["content"]:
+                            if new_token["content"][key] == value:
+                                count += 1
+                    similarity = count / len(token["content"])
+                    if similarity > self.similarity_threshold:
+                        with Path.open("removed.txt", "a", encoding="utf-8") as removed:
+                            removed.write(url + "\n")
+                        self.blacklist.append(url)
+                        return False
+                self.token_dict[parsed.path].append(new_token)
+            else:
+                self.token_dict[parsed.path] = []
+                self.token_dict[parsed.path].append(new_token)
+            return True
         except TypeError:
-            print("TypeError for ", parsed)
+            #print("TypeError for ", parsed)
             return False
         
 
