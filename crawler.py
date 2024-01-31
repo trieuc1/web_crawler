@@ -1,4 +1,5 @@
 import logging
+from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
@@ -15,9 +16,7 @@ class Crawler:
     def __init__(self, frontier, corpus):
         self.frontier = frontier
         self.corpus = corpus
-        self.token_dict = {}
-        self.blacklist = []
-        self.similarity_threshold = 0.90
+        self.subdomains = dict()
 
     def start_crawling(self):
         """
@@ -80,8 +79,7 @@ class Crawler:
         where parsed_url = urlparse(url) object
         """
         # if there is not path
-        if parsed_url.path == "":
-            print("eller")
+        if parsed_url.path == "" or parsed_url.path == '/':
             return True
         
         # gets url pieces w/o query and fragment
@@ -98,14 +96,11 @@ class Crawler:
         path_lst = path.split('/')
         clean_path_lst = [i for i in path_lst if (i != "")]
         last_path = clean_path_lst[len(clean_path_lst) - 1]
-        print(clean_path_lst)
-        print(last_path)
         # get file and folder from path
         if "." in last_path:
             if len(clean_path_lst) > 1:
                 folder = clean_path_lst[-2]
                 file = last_path.split('.')[0]
-                print(folder)
             else:
                 file = last_path.split('.')[0]
                 folder = ""
@@ -122,7 +117,6 @@ class Crawler:
                     return True
             return False
         if folder != "" and file != "":
-            print("up")
             if folder.isalnum():
                 num = self.count_num(folder)
                 if num / len(folder) >= 0.5:
@@ -142,9 +136,9 @@ class Crawler:
         This function returns the list of words in that file.
         """
         return BeautifulSoup(url_data["content"]).get_text()
-            
-
-    def is_valid(self, url, url_data):
+    
+    
+    def is_valid(self, url):
         """
         Function returns True or False based on whether the url has to be fetched or not. This is a great place to
         filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
@@ -164,8 +158,8 @@ class Crawler:
         # reducing links through parameters
         if len(query_params) > 5:
             return False
-        if not self.is_valid_path(parsed):
-            return False
+        # if not self.is_valid_path(parsed):
+        #     return False
         # reducing links based on url fragments
         if parsed.fragment in ["content-main"]:
             return False
@@ -173,7 +167,7 @@ class Crawler:
             return False
         try:
             if ( ".ics.uci.edu" in parsed.hostname \
-                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
+                   and not re.match(r".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
                                     + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
                                     + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
                                     + "|thmx|mso|arff|rtf|jar|csv" \
