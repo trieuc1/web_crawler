@@ -2,7 +2,8 @@ import logging
 import re
 from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
-
+from pathlib import Path
+import requests
 logger = logging.getLogger(__name__)
 
 class Crawler:
@@ -20,15 +21,25 @@ class Crawler:
         This method starts the crawling process which is scraping urls from the next available link in frontier and adding
         the scraped links to the frontier
         """
-        while self.frontier.has_next_url():
-            url = self.frontier.get_next_url()
-            logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
-            url_data = self.corpus.fetch_url(url)
+        
+        Path.touch("url_links.txt")
+        with Path.open("ur_link.txt", "a") as txt:
+            while self.frontier.has_next_url():
+                url = self.frontier.get_next_url()
+                logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
 
-            for next_link in self.extract_next_links(url_data):
-                if self.is_valid(next_link):
-                    if self.corpus.get_file_name(next_link) is not None:
-                        self.frontier.add_url(next_link)
+                url_data = self.corpus.fetch_url(url)
+                # Write links to txt
+                
+                txt.write(url + "\n")
+                for next_link in self.extract_next_links(url_data):
+                    if self.is_valid(next_link):
+                        #if a link is valid, it will grab all the words in the file, returns it as a list
+                        all_words_in_file = self.words_in_link(next_link)
+                        #print(all_words_in_file)
+
+                        if self.corpus.get_file_name(next_link) is not None:
+                            self.frontier.add_url(next_link)
 
     def extract_next_links(self, url_data):
         """
@@ -126,6 +137,25 @@ class Crawler:
             return False
         return False
 
+    def words_in_link(self, url_content):
+        """
+        Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
+        This function returns the list of words in that file.
+        """
+        response = requests.get(url_content)
+        tree = html.fromstring(response.content)
+        text_elements = tree.xpath('//p | //h1 | //h2 | //h3 | //h4 | //h5 | //h6 | //span | //div')
+        words = []
+
+        for element in text_elements:
+            if element.text_content():
+                list_of_words = re.split(r'[\s\t\r\n]+', element.text_content())
+                for word in list_of_words:
+                    if ((not word.isspace()) and (len(word) >= 1)):
+                        words.append(word)
+        
+        return words
+            
 
     def is_valid(self, url):
         """
@@ -155,14 +185,18 @@ class Crawler:
         if "id=" in parsed.path.split('/')[-1]:
             return False
         try:
-            return ".ics.uci.edu" in parsed.hostname \
+            if ( ".ics.uci.edu" in parsed.hostname \
                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
                                     + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
                                     + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
                                     + "|thmx|mso|arff|rtf|jar|csv" \
-                                    + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf)$", parsed.path.lower())
-
+                                    + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf)$", parsed.path.lower())):
+                return True
+            else:
+                return False
+            
         except TypeError:
             print("TypeError for ", parsed)
             return False
+        
 

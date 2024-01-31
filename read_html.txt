@@ -1,0 +1,6 @@
+def extract_words_generator(self, url_data):
+        """
+        Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
+        This function returns the list of words in that file.
+        """
+        return BeautifulSoup(url_data["content"]).get_text()
