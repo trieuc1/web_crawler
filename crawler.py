@@ -3,6 +3,7 @@ import re
 from urllib.parse import urlparse, urljoin
 from lxml import html, etree
 from pathlib import Path
+import requests
 logger = logging.getLogger(__name__)
 
 class Crawler:
@@ -33,6 +34,10 @@ class Crawler:
                 txt.write(url + "\n")
                 for next_link in self.extract_next_links(url_data):
                     if self.is_valid(next_link):
+                        #if a link is valid, it will grab all the words in the file, returns it as a list
+                        all_words_in_file = self.words_in_link(next_link)
+                        #print(all_words_in_file)
+
                         if self.corpus.get_file_name(next_link) is not None:
                             self.frontier.add_url(next_link)
 
@@ -63,7 +68,27 @@ class Crawler:
                 return []
         else:
             return []
+        
 
+    def words_in_link(self, url_content):
+        """
+        Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
+        This function returns the list of words in that file.
+        """
+        response = requests.get(url_content)
+        tree = html.fromstring(response.content)
+        text_elements = tree.xpath('//p | //h1 | //h2 | //h3 | //h4 | //h5 | //h6 | //span | //div')
+        words = []
+
+        for element in text_elements:
+            if element.text_content():
+                list_of_words = re.split(r'[\s\t\r\n]+', element.text_content())
+                for word in list_of_words:
+                    if ((not word.isspace()) and (len(word) >= 1)):
+                        words.append(word)
+        
+        return words
+            
 
     def is_valid(self, url):
         """
@@ -89,5 +114,4 @@ class Crawler:
             print("TypeError for ", parsed)
             return False
         
-
 
