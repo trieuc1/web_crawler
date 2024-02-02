@@ -1,5 +1,4 @@
 import logging
-from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
@@ -16,26 +15,9 @@ class Crawler:
     def __init__(self, frontier, corpus):
         self.frontier = frontier
         self.corpus = corpus
-        self.subdomains = dict()
-        self.blacklist = set()
-        self.whitelist = set()
-        self.check_already = set()
-        self.similarity_threshold = 0.9
-        self.n_length = 5
         self.token_dict = {}
-        self.vocabulary = {}
-        self.stop_words = []
-        self.page_most_links = {
-            "link": "",
-            "count": 0
-        }
-        self.longest_page = {
-            "link": "",
-            "count": 0
-        }
-        self.traps = set()
-        self.downloaded = set()
-        self.create_stop_words()
+        self.blacklist = []
+        self.similarity_threshold = 0.90
 
     def start_crawling(self):
         """
@@ -166,7 +148,8 @@ class Crawler:
         where parsed_url = urlparse(url) object
         """
         # if there is not path
-        if parsed_url.path == "" or parsed_url.path == '/':
+        if parsed_url.path == "":
+            print("eller")
             return True
         
         # gets url pieces w/o query and fragment
@@ -183,11 +166,14 @@ class Crawler:
         path_lst = path.split('/')
         clean_path_lst = [i for i in path_lst if (i != "")]
         last_path = clean_path_lst[len(clean_path_lst) - 1]
+        print(clean_path_lst)
+        print(last_path)
         # get file and folder from path
         if "." in last_path:
             if len(clean_path_lst) > 1:
                 folder = clean_path_lst[-2]
                 file = last_path.split('.')[0]
+                print(folder)
             else:
                 file = last_path.split('.')[0]
                 folder = ""
@@ -204,6 +190,7 @@ class Crawler:
                     return True
             return False
         if folder != "" and file != "":
+            print("up")
             if folder.isalnum():
                 num = self.count_num(folder)
                 if num / len(folder) >= 0.5:
@@ -295,58 +282,31 @@ class Crawler:
         query_params = parse_qsl(parsed.query)
         if parsed.scheme not in set(["http", "https"]):
             return False
-        # slug = parsed.
+        # not a url
+        if " " in url:
+            return False
+        # reducing links based on len of the links ~79 avg len of all links
+        if len(url) > 80:
+            return False
+        # reducing links through parameters
+        if len(query_params) > 5:
+            return False
+        if not self.is_valid_path(parsed):
+            return False
+        # reducing links based on url fragments
+        if parsed.fragment in ["content-main"]:
+            return False
+        if "id=" in parsed.path.split('/')[-1]:
+            return False
         try:
             if ( ".ics.uci.edu" in parsed.hostname \
-                   and not re.match(r".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
+                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
                                     + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
                                     + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
                                     + "|thmx|mso|arff|rtf|jar|csv" \
                                     + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf)$", parsed.path.lower())):
                 pass
             else:
-                return False
-            # not a url
-            if " " in url:
-                return False
-            # reducing links based on len of the links ~79 avg len of all links
-            if len(url) > 80:
-                return False
-            # reducing links through parameters
-            if len(query_params) > 5:
-                return False
-            # if not self.is_valid_path(parsed):
-            #     return False
-            # reducing links based on url fragments
-            if parsed.fragment in ["content-main"]:
-                return False
-            if "id=" in parsed.path.split('/')[-1]:
-                return False
-            # check for repeating sub directoried
-            list_dir = parsed.path.split("/")
-            for item in list_dir:
-                if list_dir.count(item) > 2:
-                    return False
-            if len(list_dir) > 10:
-                return False
-            # if it keeps getting longer then prob trap
-            next_url = url
-            next_len = len(url)
-            for i in range (5):
-                next_url_data = self.corpus.fetch_url(next_url)
-                if next_url_data["content"] is None:
-                    break
-                next_possible_links = self.extract_next_links(next_url_data)
-                if len(next_possible_links) == 0:
-                    break
-                next_url = max(next_possible_links, key= lambda x: len(x))
-                if len(next_url) >= next_len:
-                    next_len = len(next_url)
-                else:
-                    break
-            if "/".join(parsed.path.split("/")[:-1]) in self.whitelist:
-                return True
-            if "/".join(parsed.path.split("/")[:-1]) in self.blacklist:
                 return False
             if parsed.path in self.check_already:
                 return False
