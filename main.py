@@ -21,7 +21,9 @@ if __name__ == "__main__":
 
     # Registers a shutdown hook to save frontier state upon unexpected shutdown
     atexit.register(frontier.save_frontier)
-
+    
     # Instantiates a crawler object and starts crawling
     crawler = Crawler(frontier, corpus)
+    atexit.register(crawler.write_analytics_to_file)
     crawler.start_crawling()
+    crawler.write_analytics_to_file()
