@@ -277,12 +277,11 @@ class Crawler:
         """
         self.is_trap = True
         parsed = urlparse(url)
+        query_params = parse_qs(parsed.query)
         frag = parsed.fragment
-        query_params = parse_qsl(parsed.query)
-        for word in ["action", "session", "session_id", "sessionid", "do", "ucinetid"]:
-            if word in query_params:
+        for word in ["action", "download", "upname", "session", "session_id", "sessionid", "do", "ucinetid", "format", "task", "sort", "name", "search"]:
+            if word in query_params.keys():
                 return True
-        
         if url in self.check_already:
             self.is_trap = False
             return True
