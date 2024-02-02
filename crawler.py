@@ -1,7 +1,7 @@
 import logging
 import re
 from urllib.parse import parse_qs, urlparse, urljoin, parse_qsl, urlunparse
-from lxml import html, etree
+from lxml import html
 from pathlib import Path
 from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ class Crawler:
             logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
             self.whitelist.add(url)
             url_data = self.corpus.fetch_url(url)
+            # number of links that were able to fetched from the url
             valid_links_counter = 0
             # Write links downloaded.txt
             with Path.open("downloaded.txt", "a", encoding="utf-8") as txt:
@@ -59,50 +60,61 @@ class Crawler:
                     "link": url,
                     "count": valid_links_counter
                 }
-    
+
+
     def create_stop_words(self):
-        with open("stopwords.txt", "r") as stop_words_file:
+        with open("stopwords.txt", "r", encoding='utf-8') as stop_words_file:
             self.stop_words = stop_words_file.readlines()
         self.stop_words = [ x.strip().lower() for x in self.stop_words]
+    
+
     def run_analytics(self):
         """
         Run the analytics after seperating all the crawler traps out
         """
         longest_page = {"link": "", "count": 0}
         vocabulary = {}
-        # Analytics #2
-        with open("analytics.txt", "a") as file:
+        # Analytics #2: getting most valid out links
+        with open("analytics.txt", "a", encoding='utf-8') as file:
             file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
         for link in self.frontier.urls_set:
+
+            # -----------Analytics #1----------
+            # counting urls each subdomains fetched
+            subdomain = urlparse(link).netloc
+            self.subdomains[subdomain] = self.subdomains.get(subdomain, 0) + 1
+
+            # ----------Analytics #4--------
             url_data = self.corpus.fetch_url(link)
+            # gets words from the webpage
             url_text = self.extract_words_generator(url_data).lower().split()
             url_text_length = len(url_text)
-            # Analytics #1
-            subdomain = urlparse(link).netloc
-            if subdomain not in self.subdomains:
-                self.subdomains[subdomain] = 0
-            self.subdomains[subdomain] += 1
-            # Analytics # 4
+            
+            # finding largest page
             if url_text_length > longest_page["count"]:
                 longest_page = {
                     "link": link,
                     "count": url_text_length
                 }
+            
+            # accumulating counts for each word from all webpages and adding it to vocabulary
             url_text_set = set(url_text)
-            for word in self.stop_words:
-                url_text_set.discard(word)
             for word in url_text_set:
-                if word not in vocabulary:
+                if word not in vocabulary and word not in self.stop_words:
                     vocabulary[word] = 0
                 vocabulary[word] += url_text.count(word)
+        
         with open("analytics.txt", "a", encoding="utf-8") as file:
-            # Analytics 1
-            file.write(f"\n\nSubdomains: Links proccessed\n")
+
+            # Analytics 1: writing to file the subdomains and number of links
+            file.write("\n\nSubdomains: Links proccessed\n")
             for subdomain, count in self.subdomains.items():
                 file.write (f"{subdomain}: {count}\n")
-            # Analytics 4
+
+            # Analytics 4: writing to analytics page the longest page url and its count
             file.write(f"\n\nLongest Page: \n{longest_page}\n")
-            # Analytics 5
+
+            # Analytics 5: writing to analytics the 50 most common words in all webpages and its count
             sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
             file.write("\n\n50 most common words:\n")
             counter = 1
@@ -143,12 +155,14 @@ class Crawler:
         else:
             return []
     
+
     def count_num(self, s):
         num = 0
         for char in s:
             if char.isdigit():
                 num += 1
         return num
+
 
     def is_valid_path(self, parsed_url):
         """
@@ -207,6 +221,7 @@ class Crawler:
             return False
         return False
 
+
     def extract_words_generator(self, url_data):
         """
         Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
@@ -216,10 +231,15 @@ class Crawler:
             return BeautifulSoup(url_data["content"], "lxml").get_text()
         except:
             return ""
-    def check_simlarity(self, parsed, url):
+    
+
+    def check_similarity(self, parsed, url):
         """
-        Tokenize the words and htei frequency. Checks if they are in the dictionary, if not hten add. If it is found, do a similarity test and update the 
-        black and waitlist
+        Tokenize the words and htei frequency. Checks if they are in the dictionary,
+        if not then add.
+        
+        If it is found, do a similarity test and update the
+        black and whitelist.
         """
         new_token = {
                 "content": {},
@@ -229,10 +249,14 @@ class Crawler:
             }
         word_list = []
         phrase = ""
+
+        # if there is nothing on the page, return false
         url_data = self.corpus.fetch_url(url)
         if url_data["content"] is None:
             return False
+        
         # iterate through words and see how many simliar phrases there are
+        # n_length-gram phrase check, where n_length = 5
         for word in self.extract_words_generator(url_data).split():
             word_list.append(word.lower())
             phrase = " ".join(word_list)
@@ -240,23 +264,30 @@ class Crawler:
                 new_token["content"][phrase] = 1
             else:
                 new_token["content"][phrase] += 1
+            
+            # if the phrase is longer than five words, remove the first word
             if len(word_list) == self.n_length:
                 word_list.pop(0)
-        # if exntry exists already 
+        
+        # if path is a duplicate
         if parsed in self.token_dict:
-            count = 0
+            phrase_similarity_count = 0
+            # ------check if content of url has similar content to another similar url----
             for new_key, new_value in new_token["content"].items():
-                # if path already in token dict, check similarity
+                # if phrase in url data already in token dict and its similar, increase phrase similarity counter
                 if new_key in self.token_dict[parsed]["content"]:
                     if self.token_dict[parsed]["content"][new_key] == new_value:
-                        count += 1
-            if count == 0 or max([len(self.token_dict[parsed]["content"]), len(new_token["content"])]) == 0:
+                        phrase_similarity_count += 1
+            
+            # if the content isnt similar or the url doesnt have content
+            if phrase_similarity_count == 0 or max([len(self.token_dict[parsed]["content"]), len(new_token["content"])]) == 0:
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["count_checks"] == 10 and self.token_dict[parsed]["blacklist"] == 2:
+                if self.token_dict[parsed]["count_checks"] >= 10 and self.token_dict[parsed]["blacklist"] <= 2:
                     self.whitelist.add(parsed)
                 self.token_dict[parsed]["count_checks"] += 1
                 return True
-            similarity = count / max([len(self.token_dict[parsed]["content"]), len(new_token["content"])])
+            
+            similarity = phrase_similarity_count / max([len(self.token_dict[parsed]["content"]), len(new_token["content"])])
             # test if just duplicate file, if so return false
             if similarity == 1:
                 for item in ["index", "index.php", "php"]:
@@ -266,13 +297,15 @@ class Crawler:
             if similarity > self.similarity_threshold:
                 self.token_dict[parsed]["blacklist"] += 1
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["blacklist"] == 10:
+                if self.token_dict[parsed]["blacklist"] >= 10:
                     self.blacklist.add(parsed)
                 return False
             else:
+                # if not that similar
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["count_checks"] == 10 and self.token_dict[parsed]["blacklist"] == 2:
+                if self.token_dict[parsed]["count_checks"] >= 10 and self.token_dict[parsed]["blacklist"] <= 2:
                     self.whitelist.add(parsed)
+                    
         else:
             self.token_dict[parsed] = new_token
         return True
@@ -339,7 +372,7 @@ class Crawler:
         if status == False:
             return False
         try:
-            if self.check_simlarity("/".join(parsed.path.split("/")[:-1]), url) == False:
+            if self.check_similarity("/".join(parsed.path.split("/")[:-1]), url) == False:
                 self.check_already.add(url)
                 return False
         except Exception as e:
