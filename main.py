@@ -24,6 +24,6 @@ if __name__ == "__main__":
     
     # Instantiates a crawler object and starts crawling
     crawler = Crawler(frontier, corpus)
-    atexit.register(crawler.write_analytics_to_file)
+    atexit.register(crawler.run_analytics)
     crawler.start_crawling()
-    crawler.write_analytics_to_file()
+    crawler.run_analytics()

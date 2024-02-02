@@ -16,8 +16,17 @@ class Crawler:
         self.frontier = frontier
         self.corpus = corpus
         self.token_dict = {}
-        self.blacklist = []
+        self.blacklist = set()
+        self.whitelist = set()
         self.similarity_threshold = 0.90
+        self.n_length = 5
+        self.stop_words = []
+        self.page_most_links = {"link": "", "count": 0}
+        self.subdomains = {}
+        self.is_trap = False
+        self.check_already = set()
+        self.create_stop_words()
+        print(self.stop_words)
 
     def start_crawling(self):
         """
@@ -25,86 +34,84 @@ class Crawler:
         the scraped links to the frontier
         """
         
-        Path.touch("downloaded.txt")
-        with Path.open("downloaded.txt", "a", encoding="utf-8") as txt:
-            while self.frontier.has_next_url():
-                url = self.frontier.get_next_url()
-                logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
-                self.whitelist.add(url)
-                url_data = self.corpus.fetch_url(url)
-                subdomain = self.analytics(url_data, url)
-                if subdomain not in self.subdomains:
-                    self.subdomains[subdomain] = set()
-                valid_links_counter = 0
-                self.downloaded.add(url)
-                # Write links to txt
+        while self.frontier.has_next_url():
+            url = self.frontier.get_next_url()
+            logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
+            self.whitelist.add(url)
+            url_data = self.corpus.fetch_url(url)
+            valid_links_counter = 0
+            # Write links downloaded.txt
+            with Path.open("downloaded.txt", "a", encoding="utf-8") as txt:
                 txt.write(url + "\n")
-                for next_link in set(self.extract_next_links(url_data)):
-                    if self.is_valid(next_link):
-                        if self.corpus.get_file_name(next_link) is not None:
-                            self.frontier.add_url(next_link)
-                            self.subdomains[subdomain].add(next_link)
-                            valid_links_counter += 1
-                    else:
-                        self.traps.add(next_link)
-                # update link with the most valid links out
-                if valid_links_counter > self.page_most_links["count"]:
-                    self.page_most_links = {
-                        "link": url,
-                        "count": valid_links_counter
-                    }
-
-    def write_analytics_to_file(self):
-        Path.touch("traps.txt")
-        with Path.open("traps.txt", "a", encoding="utf-8") as trap_file:
-            for i in self.traps:
-                trap_file.write(i + "\n")
-        # subdomain analytics
-        Path.touch("subdomains.txt")
-        with Path.open("subdomains.txt", "a", encoding="utf-8") as subdomains_file:
-            subdomains_file.write("subdomains : count of different urls\n")
-            for key, value in self.subdomains.items():
-                subdomains_file.write(f"{key} : { len(value)}")
-        # Path.touch("stats.txt")
-        sorted_vocabulary = dict(sorted(self.vocabulary.items(), key= lambda x: x[1], reverse=True))
-        with Path.open("stats.txt", "a", encoding="utf-8") as stats_file:
-            stats_file.write(f"longest page: {self.longest_page['link']} \n count: {self.longest_page['count']}\n")
-            stats_file.write("50 most common words\n")
-            counter = 1
-            for key, value in sorted_vocabulary.items():
-                stats_file.write(f"{counter}. {key} : {value}\n")
-                if counter == 51:
-                    break
+            for next_link in set(self.extract_next_links(url_data)):
+                validty = self.is_valid(next_link)
+                if self.is_trap == False and validty == False:
+                    pass
+                elif validty:
+                    if self.corpus.get_file_name(next_link) is not None:
+                        self.frontier.add_url(next_link)
+                        valid_links_counter += 1
                 else:
-                    counter += 1
-
-    def analytics(self, url_data, url):
-        """ Does the analytics"""
-        all_text = self.extract_words_generator(url_data)
-        subdomain = urlparse(url_data["url"]).netloc
-        if subdomain not in self.subdomains:
-            self.subdomains[subdomain] = set()
-        if len(all_text.split()) > self.longest_page["count"]:
-            self.longest_page = {
-                "link": url,
-                "count": len(all_text.split())
-            }
-        list_text = all_text.lower().split()
-        unique_words = set(list_text)
-        for word in self.stop_words:
-            if word.lower() in unique_words:
-                unique_words.discard(word.lower())
-        for word in unique_words:
-            if word in self.vocabulary:
-                self.vocabulary[word] += list_text.count(word)
-            else:
-                self.vocabulary[word] = list_text.count(word)
-        return subdomain
+                    with Path.open("removed.txt", "a", encoding="utf-8") as removed:
+                        removed.write(next_link + "\n")
+            # update link with the most valid links out
+            if valid_links_counter > self.page_most_links["count"]:
+                self.page_most_links = {
+                    "link": url,
+                    "count": valid_links_counter
+                }
     
     def create_stop_words(self):
         with open("stopwords.txt", "r") as stop_words_file:
             self.stop_words = stop_words_file.readlines()
         self.stop_words = [ x.strip().lower() for x in self.stop_words]
+    def run_analytics(self):
+        """
+        Run the analytics after seperating all the crawler traps out
+        """
+        longest_page = {"link": "", "count": 0}
+        vocabulary = {}
+        # Analytics #2
+        with open("analytics.txt", "a") as file:
+            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
+        for link in self.frontier.urls_set:
+            url_data = self.corpus.fetch_url(link)
+            url_text = self.extract_words_generator(url_data).lower().split()
+            url_text_length = len(url_text)
+            # Analytics #1
+            subdomain = urlparse(link).netloc
+            if subdomain not in self.subdomains:
+                self.subdomains[subdomain] = 0
+            self.subdomains[subdomain] += 1
+            # Analytics # 4
+            if url_text_length > longest_page["count"]:
+                longest_page = {
+                    "link": link,
+                    "count": url_text_length
+                }
+            url_text_set = set(url_text)
+            for word in self.stop_words:
+                url_text_set.discard(word)
+            for word in url_text_set:
+                if word not in vocabulary:
+                    vocabulary[word] = 0
+                vocabulary[word] += url_text.count(word)
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            # Analytics 1
+            file.write(f"\n\nSubdomains: Links proccessed\n")
+            for subdomain, count in self.subdomains.items():
+                file.write (f"{subdomain}: {count}\n")
+            # Analytics 4
+            file.write(f"\n\nLongest Page: \n{longest_page}\n")
+            # Analytics 5
+            sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
+            file.write("\n\n50 most common words:\n")
+            counter = 1
+            for word, count in sorted_vocab.items():
+                if counter == 51:
+                    break
+                file.write(f"{counter}. {word}: {count}\n")
+                counter += 1
         
     def extract_next_links(self, url_data):
         """
@@ -122,7 +129,7 @@ class Crawler:
             url = url_data.get("final_url")
         content = url_data.get('content')
 
-        if url is not None and content is not None:
+        if url is not None and content is not None and content is not "" and len(content) != 0:
             # parses html content
             try:
                 tree = html.fromstring(content)
@@ -131,7 +138,8 @@ class Crawler:
                 # turns every relative link into absolute
                 absolute_urls =[urljoin(url, link) for link in all_links]
                 return absolute_urls
-            except (etree.ParserError):
+            except Exception as e:
+                print(e)
                 return []
         else:
             return []
@@ -148,8 +156,7 @@ class Crawler:
         where parsed_url = urlparse(url) object
         """
         # if there is not path
-        if parsed_url.path == "":
-            print("eller")
+        if parsed_url.path == "" or parsed_url.path == '/':
             return True
         
         # gets url pieces w/o query and fragment
@@ -166,14 +173,11 @@ class Crawler:
         path_lst = path.split('/')
         clean_path_lst = [i for i in path_lst if (i != "")]
         last_path = clean_path_lst[len(clean_path_lst) - 1]
-        print(clean_path_lst)
-        print(last_path)
         # get file and folder from path
         if "." in last_path:
             if len(clean_path_lst) > 1:
                 folder = clean_path_lst[-2]
                 file = last_path.split('.')[0]
-                print(folder)
             else:
                 file = last_path.split('.')[0]
                 folder = ""
@@ -190,7 +194,7 @@ class Crawler:
                     return True
             return False
         if folder != "" and file != "":
-            print("up")
+
             if folder.isalnum():
                 num = self.count_num(folder)
                 if num / len(folder) >= 0.5:
@@ -249,6 +253,8 @@ class Crawler:
                 self.token_dict[parsed]["count_checks"] += 1
                 if self.token_dict[parsed]["count_checks"] == 10 and self.token_dict[parsed]["blacklist"] == 2:
                     self.whitelist.add(parsed)
+                self.token_dict[parsed]["count_checks"] += 1
+                return True
             similarity = count / max([len(self.token_dict[parsed]["content"]), len(new_token["content"])])
             # test if just duplicate file, if so return false
             if similarity == 1:
@@ -257,10 +263,9 @@ class Crawler:
                         return True
             # if very similar, remove
             if similarity > self.similarity_threshold:
-                with Path.open("removed.txt", "a", encoding="utf-8") as removed:
-                    removed.write(f"{url} --Duplication score: {similarity}\n")
                 self.token_dict[parsed]["blacklist"] += 1
-                if self.token_dict[parsed]["blacklist"] == 6:
+                self.token_dict[parsed]["count_checks"] += 1
+                if self.token_dict[parsed]["blacklist"] == 10:
                     self.blacklist.add(parsed)
                 return False
             else:
@@ -280,24 +285,7 @@ class Crawler:
         """
         parsed = urlparse(url)
         query_params = parse_qsl(parsed.query)
-        if parsed.scheme not in set(["http", "https"]):
-            return False
-        # not a url
-        if " " in url:
-            return False
-        # reducing links based on len of the links ~79 avg len of all links
-        if len(url) > 80:
-            return False
-        # reducing links through parameters
-        if len(query_params) > 5:
-            return False
-        if not self.is_valid_path(parsed):
-            return False
-        # reducing links based on url fragments
-        if parsed.fragment in ["content-main"]:
-            return False
-        if "id=" in parsed.path.split('/')[-1]:
-            return False
+        self.is_trap = False
         try:
             if ( ".ics.uci.edu" in parsed.hostname \
                     and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
@@ -308,14 +296,56 @@ class Crawler:
                 pass
             else:
                 return False
-            if parsed.path in self.check_already:
-                return False
-            if self.check_simlarity("/".join(parsed.path.split("/")[:-1]), url) == False:
-                self.check_already.add(parsed.path)
-                return False
-            return True
         except TypeError:
             #print("TypeError for ", parsed)
             return False
+        status = True
+        self.is_trap = True
+        if parsed.scheme not in set(["http", "https"]):
+            status = False
+        # not a url
+        if " " in url:
+            status = False
+        # reducing links based on len of the links ~79 avg len of all links
+        if len(url) > 80:
+            status = False
+        # reducing links through parameters
+        if len(query_params) > 5:
+            status = False
+        # if not self.is_valid_path(parsed):
+        #     print("valid")
+        #     status = False
+        # reducing links based on url fragments
+        if parsed.fragment in ["content-main"]:
+            status = False
+        for word in ["netid=", "session=", "session_id=", "sessionid="]:
+            if word.strip("?") in parsed.path.split('/'):
+                status = False
+        subdirectories = parsed.path.lower().split("/")
+        for subdir in set(subdirectories):
+            if subdirectories.count(subdir) > 3:
+                status = False
+        if parsed.query(subdir) > 3:
+                status = False
+        if len(urlparse.parse_qs(parsed.query)) > 3:
+            status = False
+        if status == False:
+            return False
+        
+        if url in self.check_already:
+            self.is_trap = False
+            return False
+        url_path = "/".join(parsed.path.split("/")[:-1]) 
+        if url_path in self.whitelist:
+            return True
+        if url_path in self.blacklist:
+            return False
+        try:
+            if self.check_simlarity("/".join(parsed.path.split("/")[:-1]), url) == False:
+                self.check_already.add(url)
+                return False
+        except Exception as e:
+            print(e)
+        return True
         
 
