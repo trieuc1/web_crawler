@@ -331,9 +331,9 @@ class Crawler:
         """
         self.is_trap = True
         parsed = urlparse(url)
-        query_params = parse_qsl(parsed.query)
-        for word in ["action", "session", "session_id", "sessionid", "do", "ucinetid"]:
-            if word in parse_qs(parsed.query):
+        query_params = parse_qs(parsed.query)
+        for word in ["action", "download", "upname", "session", "session_id", "sessionid", "do", "ucinetid", "format", "task", "sort", "name", "search"]:
+            if word in query_params.keys():
                 return False
         if url in self.check_already:
             self.is_trap = False
@@ -350,7 +350,7 @@ class Crawler:
         if len(url) > 80:
             return False
         # reducing links through parameters
-        if len(query_params) > 5:
+        if len(query_params) > 3:
             return False
         # if not self.is_valid_path(parsed):
         #     print("valid")
