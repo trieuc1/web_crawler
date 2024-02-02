@@ -24,6 +24,8 @@ class Crawler:
         self.page_most_links = {"link": "", "count": 0}
         self.subdomains = {}
         self.is_trap = False
+        self.downloaded = []
+        self.removed = []
         self.check_already = set()
         self.create_stop_words()
 
@@ -40,19 +42,15 @@ class Crawler:
             # number of links that were able to fetched from the url
             valid_links_counter = 0
             # Write links downloaded.txt
-            with Path.open("downloaded.txt", "a", encoding="utf-8") as txt:
-                txt.write(url + "\n")
             for next_link in set(self.extract_next_links(url_data)):
-                validty = self.is_valid(next_link)
-                if self.is_trap == False and validty == False:
-                    pass
-                elif validty:
+                validity = self.is_valid(next_link)
+                if validity:
                     if self.corpus.get_file_name(next_link) is not None:
+                        self.downloaded.append(next_link)
                         self.frontier.add_url(next_link)
                         valid_links_counter += 1
                 else:
-                    with Path.open("removed.txt", "a", encoding="utf-8") as removed:
-                        removed.write(next_link + "\n")
+                    self.removed.append(next_link)
             # update link with the most valid links out
             if valid_links_counter > self.page_most_links["count"]:
                 self.page_most_links = {
@@ -62,6 +60,9 @@ class Crawler:
 
 
     def create_stop_words(self):
+        """
+        Reads stopwords.txt and adds all of its words in a list
+        """
         with open("stopwords.txt", "r", encoding='utf-8') as stop_words_file:
             self.stop_words = stop_words_file.readlines()
         self.stop_words = [ x.strip().lower() for x in self.stop_words]
@@ -73,9 +74,6 @@ class Crawler:
         """
         longest_page = {"link": "", "count": 0}
         vocabulary = {}
-        # Analytics #2: getting most valid out links
-        with open("analytics.txt", "a", encoding='utf-8') as file:
-            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
         counter = 0
         total_link = len(self.frontier.urls_set)
         for link in self.frontier.urls_set:
@@ -125,6 +123,18 @@ class Crawler:
             file.write("\n\nSubdomains: Links proccessed\n")
             for subdomain, count in self.subdomains.items():
                 file.write (f"{subdomain}: {count}\n")
+            
+            # Analytics 2: getting most valid out links
+            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
+
+            # Analytics 3: List of downloaded and list of identified traps
+            file.write("\n\nList of downloaded urls:\n")
+            for i in self.downloaded:
+                file.write(f"URL: {i}\n")
+            
+            file.write("\n\nList of identified trap urls:\n")
+            for i in self.removed:
+                file.write(f"URL: {i}\n")
 
             # Analytics 4: writing to analytics page the longest page url and its count
             file.write(f"\n\nLongest Page: \n{longest_page}\n")
@@ -169,72 +179,6 @@ class Crawler:
                 return []
         else:
             return []
-    
-
-    def count_num(self, s):
-        num = 0
-        for char in s:
-            if char.isdigit():
-                num += 1
-        return num
-
-
-    def is_valid_path(self, parsed_url):
-        """
-        where parsed_url = urlparse(url) object
-        """
-        # if there is not path
-        if parsed_url.path == "" or parsed_url.path == '/':
-            return True
-        
-        # gets url pieces w/o query and fragment
-        new_url_tuple = (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', '')
-
-        # puts those url pieces together
-        clean_url = urlunparse(new_url_tuple)
-        clean_url = urlparse(clean_url)
-
-        # get path
-        folder = ''
-        file = ''
-        path = clean_url.path
-        path_lst = path.split('/')
-        clean_path_lst = [i for i in path_lst if (i != "")]
-        last_path = clean_path_lst[len(clean_path_lst) - 1]
-        # get file and folder from path
-        if "." in last_path:
-            if len(clean_path_lst) > 1:
-                folder = clean_path_lst[-2]
-                file = last_path.split('.')[0]
-            else:
-                file = last_path.split('.')[0]
-                folder = ""
-        else:
-            file = ""
-        
-        # check folder
-        if folder != "" and file == "":
-            if folder.isalnum():
-                num = self.count_num(folder)
-                if num / len(folder) >= 0.5:
-                    return False
-                else:
-                    return True
-            return False
-        if folder != "" and file != "":
-
-            if folder.isalnum():
-                num = self.count_num(folder)
-                if num / len(folder) >= 0.5:
-                    return False
-                else:
-                    num = self.count_num(file)
-                    if num / len(file) >= 0.5:
-                        return False
-                    else:
-                        return True
-            return False
-        return False
 
 
     def extract_words_generator(self, url_data):
@@ -325,45 +269,55 @@ class Crawler:
             self.token_dict[parsed] = new_token
         return True
 
-    def check_traps(self, url):
+    def is_link_trap(self, url):
         """
         Checks for traps
+        return False if its not a trap
+        return True if it is a trap
         """
         self.is_trap = True
         parsed = urlparse(url)
+        frag = parsed.fragment
         query_params = parse_qsl(parsed.query)
         for word in ["action", "session", "session_id", "sessionid", "do", "ucinetid"]:
-            if word in parse_qs(parsed.query):
-                return False
+            if word in query_params:
+                return True
+        
         if url in self.check_already:
             self.is_trap = False
-            return False
-        url_path = "/".join(parsed.path.split("/")[:-1]) 
-        if url_path in self.whitelist:
             return True
-        if url_path in self.blacklist:
+        
+        # all fragments do is lead to part of a page -> duplicate content
+        if frag != "":
+            return True
+            
+        url_path = "/".join(parsed.path.split("/")[:-1]) 
+
+        if url_path in self.whitelist:
             return False
+        
+        if url_path in self.blacklist:
+            return True
+        
         # not a url
         if " " in url:
-            return False
+            return True
+        
         # reducing links based on len of the links ~79 avg len of all links
         if len(url) > 80:
-            return False
+            return True
+        
         # reducing links through parameters
-        if len(query_params) > 5:
-            return False
-        # if not self.is_valid_path(parsed):
-        #     print("valid")
-        #     status = False
-        # reducing links based on url fragments
-        if parsed.fragment in ["content-main"]:
-            return False
+        if len(query_params) > 3:
+            return True
+
+        # check for repeating directories
         subdirectories = parsed.path.lower().split("/")
-        for subdir in set(subdirectories):
-            if subdirectories.count(subdir) > 3:
-                return False
-        if len(parse_qs(parsed.query)) > 3:
-            return False
+        all_subdir = [i for i in subdirectories if i != ""]
+        count_sub  = [all_subdir.count(i) for i in all_subdir]
+        for x in count_sub:
+            if x > 1:
+                return True
         try:
             if self.check_similarity("/".join(parsed.path.split("/")[:-1]), url) == False:
                 self.check_already.add(url)
@@ -372,7 +326,8 @@ class Crawler:
             print(e)
             return False
         return True
-        
+    
+
     def is_valid(self, url):
         """
         Function returns True or False based on whether the url has to be fetched or not. This is a great place to
@@ -380,7 +335,6 @@ class Crawler:
         in this method
         """
         parsed = urlparse(url)
-        query_params = parse_qsl(parsed.query)
         self.is_trap = False
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -398,7 +352,8 @@ class Crawler:
             #print("TypeError for ", parsed)
             return False
         
-        return self.check_traps(url)
+        # 
+        return self.is_link_trap(url) is not True
 
         
 
