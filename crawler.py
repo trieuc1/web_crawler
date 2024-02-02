@@ -1,6 +1,6 @@
 import logging
 import re
-from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
+from urllib.parse import parse_qs, urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html, etree
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -26,7 +26,6 @@ class Crawler:
         self.is_trap = False
         self.check_already = set()
         self.create_stop_words()
-        print(self.stop_words)
 
     def start_crawling(self):
         """
@@ -129,7 +128,7 @@ class Crawler:
             url = url_data.get("final_url")
         content = url_data.get('content')
 
-        if url is not None and content is not None and content is not "" and len(content) != 0:
+        if url is not None and content is not None and content != "" and len(content) != 0:
             # parses html content
             try:
                 tree = html.fromstring(content)
@@ -213,8 +212,10 @@ class Crawler:
         Function that gets the file content. It grabs the anything in the p, h1, h2, h3, h4, h5, h6, span and div tabs. (Tabs that generally include words)
         This function returns the list of words in that file.
         """
-        return BeautifulSoup(url_data["content"]).get_text()
-    
+        try:
+            return BeautifulSoup(url_data["content"], "lxml").get_text()
+        except:
+            return ""
     def check_simlarity(self, parsed, url):
         """
         Tokenize the words and htei frequency. Checks if they are in the dictionary, if not hten add. If it is found, do a similarity test and update the 
@@ -303,6 +304,14 @@ class Crawler:
         self.is_trap = True
         if parsed.scheme not in set(["http", "https"]):
             status = False
+        if url in self.check_already:
+            self.is_trap = False
+            return False
+        url_path = "/".join(parsed.path.split("/")[:-1]) 
+        if url_path in self.whitelist:
+            return True
+        if url_path in self.blacklist:
+            return False
         # not a url
         if " " in url:
             status = False
@@ -318,27 +327,16 @@ class Crawler:
         # reducing links based on url fragments
         if parsed.fragment in ["content-main"]:
             status = False
-        for word in ["netid=", "session=", "session_id=", "sessionid="]:
-            if word.strip("?") in parsed.path.split('/'):
+        for word in ["action", "session", "session_id", "sessionid"]:
+            if word in parse_qs(parsed.query):
                 status = False
         subdirectories = parsed.path.lower().split("/")
         for subdir in set(subdirectories):
             if subdirectories.count(subdir) > 3:
                 status = False
-        if parsed.query(subdir) > 3:
-                status = False
-        if len(urlparse.parse_qs(parsed.query)) > 3:
+        if len(parse_qs(parsed.query)) > 3:
             status = False
         if status == False:
-            return False
-        
-        if url in self.check_already:
-            self.is_trap = False
-            return False
-        url_path = "/".join(parsed.path.split("/")[:-1]) 
-        if url_path in self.whitelist:
-            return True
-        if url_path in self.blacklist:
             return False
         try:
             if self.check_simlarity("/".join(parsed.path.split("/")[:-1]), url) == False:
