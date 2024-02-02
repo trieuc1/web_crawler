@@ -1,0 +1,334 @@
+Link with the most valid out links:
+{'link': 'https://www.ics.uci.edu/ugrad/degrees/index.php', 'count': 76}
+Link with the most valid out links:
+{'link': 'https://www.ics.uci.edu/community/news/index.php', 'count': 235}
+
+
+Subdomains: Links proccessed
+cml.ics.uci.edu: 18
+www.ics.uci.edu: 1000
+isg.ics.uci.edu: 3
+duttgroup.ics.uci.edu: 17
+perennialpolycultures.ics.uci.edu: 1
+emj.ics.uci.edu: 35
+luci.ics.uci.edu: 8
+ugradforms.ics.uci.edu: 2
+honors.ics.uci.edu: 14
+sconce.ics.uci.edu: 4
+mcs.ics.uci.edu: 28
+cert.ics.uci.edu: 14
+radicle.ics.uci.edu: 6
+mhcid.ics.uci.edu: 18
+support.ics.uci.edu: 4
+cocoa-krispies.ics.uci.edu: 1
+evoke.ics.uci.edu: 10
+xtune.ics.uci.edu: 1
+student-council.ics.uci.edu: 1
+futurehealth.ics.uci.edu: 18
+vision.ics.uci.edu: 14
+computableplant.ics.uci.edu: 5
+sherlock.ics.uci.edu: 9
+hombao.ics.uci.edu: 15
+malek.ics.uci.edu: 1
+wics.ics.uci.edu: 4
+asterix.ics.uci.edu: 5
+sdcl.ics.uci.edu: 1
+intranet.ics.uci.edu: 5
+ngs.ics.uci.edu: 2
+grape.ics.uci.edu: 1
+swiki.ics.uci.edu: 1
+asterixdb.ics.uci.edu: 1
+transformativeplay.ics.uci.edu: 2
+archive.ics.uci.edu: 1
+mswe.ics.uci.edu: 9
+tippersweb.ics.uci.edu: 1
+se.ics.uci.edu: 1
+chenli.ics.uci.edu: 1
+keys.ics.uci.edu: 1
+mse.ics.uci.edu: 2
+fr.ics.uci.edu: 2
+webmail.ics.uci.edu: 1
+calendar.ics.uci.edu: 1
+jgarcia.ics.uci.edu: 1
+sprout.ics.uci.edu: 1
+graphics.ics.uci.edu: 1
+netreg.ics.uci.edu: 1
+
+
+Longest Page: 
+{'link': 'https://www.ics.uci.edu/~dutt/', 'count': 30446}
+
+
+50 most common words:
+1. s: 8981
+2. bren: 7309
+3. school: 6921
+4. computer: 6917
+5. ics: 6842
+6. uci: 6710
+7. policies: 6580
+8. e: 6310
+9. t: 5517
+10. research: 5228
+11. students: 4982
+12. student: 4964
+13. academic: 4689
+14. n: 4490
+15. o: 4479
+16. m: 4379
+17. l: 4114
+18. information: 4084
+19. events: 3813
+20. contact: 3766
+21. d: 3705
+22. donald: 3692
+23. news: 3480
+24. science: 3258
+25. graduate: 3186
+26. p: 3140
+27. faculty: 3019
+28. r: 2872
+29. computing: 2682
+30. c: 2674
+31. sciences: 2609
+32. irvine: 2549
+33. year: 2165
+34. support: 2083
+35. data: 2051
+36. university: 2034
+37. 2018: 1997
+38. will: 1985
+39. systems: 1983
+40. informatics: 1964
+41. f: 1827
+42. hall: 1800
+43. home: 1748
+44. policy: 1729
+45. plan: 1714
+46. visit: 1691
+47. staff: 1685
+48. gift: 1584
+49. 199: 1581
+50. edu: 1575
+Link with the most valid out links:
+{'link': 'https://www.ics.uci.edu/community/news/view_news?id=1384', 'count': 70}
+
+
+Subdomains: Links proccessed
+www.ics.uci.edu: 1036
+intranet.ics.uci.edu: 5
+mcs.ics.uci.edu: 28
+mhcid.ics.uci.edu: 18
+vision.ics.uci.edu: 14
+transformativeplay.ics.uci.edu: 4
+hombao.ics.uci.edu: 15
+luci.ics.uci.edu: 9
+duttgroup.ics.uci.edu: 17
+cml.ics.uci.edu: 18
+cert.ics.uci.edu: 14
+futurehealth.ics.uci.edu: 18
+cocoa-krispies.ics.uci.edu: 1
+evoke.ics.uci.edu: 10
+emj.ics.uci.edu: 35
+support.ics.uci.edu: 4
+netreg.ics.uci.edu: 1
+mswe.ics.uci.edu: 9
+sherlock.ics.uci.edu: 9
+isg.ics.uci.edu: 3
+sconce.ics.uci.edu: 4
+asterix.ics.uci.edu: 5
+radicle.ics.uci.edu: 6
+student-council.ics.uci.edu: 1
+computableplant.ics.uci.edu: 5
+ugradforms.ics.uci.edu: 2
+calendar.ics.uci.edu: 1
+honors.ics.uci.edu: 14
+webmail.ics.uci.edu: 1
+keys.ics.uci.edu: 1
+xtune.ics.uci.edu: 1
+wics.ics.uci.edu: 4
+sdcl.ics.uci.edu: 1
+mse.ics.uci.edu: 2
+swiki.ics.uci.edu: 1
+fr.ics.uci.edu: 2
+malek.ics.uci.edu: 1
+perennialpolycultures.ics.uci.edu: 1
+tippersweb.ics.uci.edu: 1
+sprout.ics.uci.edu: 1
+ngs.ics.uci.edu: 2
+se.ics.uci.edu: 1
+chenli.ics.uci.edu: 1
+jgarcia.ics.uci.edu: 1
+grape.ics.uci.edu: 1
+graphics.ics.uci.edu: 1
+asterixdb.ics.uci.edu: 1
+archive.ics.uci.edu: 1
+
+
+Longest Page: 
+{'link': 'https://www.ics.uci.edu/~dutt/', 'count': 30446}
+
+
+50 most common words:
+1. s: 9158
+2. bren: 7552
+3. school: 7160
+4. computer: 7119
+5. ics: 7030
+6. uci: 6956
+7. policies: 6833
+8. e: 6319
+9. t: 5575
+10. research: 5390
+11. students: 5178
+12. student: 5163
+13. academic: 4841
+14. n: 4490
+15. o: 4480
+16. m: 4388
+17. information: 4213
+18. l: 4115
+19. events: 3987
+20. contact: 3914
+21. donald: 3850
+22. d: 3723
+23. news: 3682
+24. science: 3335
+25. graduate: 3279
+26. p: 3143
+27. faculty: 3113
+28. r: 2875
+29. computing: 2741
+30. sciences: 2702
+31. c: 2677
+32. irvine: 2639
+33. year: 2259
+34. support: 2150
+35. will: 2123
+36. university: 2089
+37. data: 2085
+38. 2018: 2054
+39. informatics: 2047
+40. systems: 1999
+41. hall: 1863
+42. f: 1827
+43. home: 1821
+44. policy: 1787
+45. plan: 1778
+46. visit: 1752
+47. staff: 1741
+48. gift: 1640
+49. 199: 1637
+50. apply: 1616
+Link with the most valid out links:
+{'link': 'https://www.ics.uci.edu/community/news/view_news?id=1426', 'count': 69}
+
+
+Subdomains: Links proccessed
+www.ics.uci.edu: 1067
+mswe.ics.uci.edu: 9
+vision.ics.uci.edu: 14
+radicle.ics.uci.edu: 6
+ugradforms.ics.uci.edu: 2
+evoke.ics.uci.edu: 10
+hombao.ics.uci.edu: 16
+emj.ics.uci.edu: 35
+ngs.ics.uci.edu: 2
+sherlock.ics.uci.edu: 9
+mhcid.ics.uci.edu: 18
+duttgroup.ics.uci.edu: 17
+cml.ics.uci.edu: 18
+swiki.ics.uci.edu: 1
+futurehealth.ics.uci.edu: 18
+support.ics.uci.edu: 4
+mcs.ics.uci.edu: 28
+transformativeplay.ics.uci.edu: 4
+intranet.ics.uci.edu: 5
+sconce.ics.uci.edu: 4
+cert.ics.uci.edu: 14
+isg.ics.uci.edu: 3
+mse.ics.uci.edu: 2
+honors.ics.uci.edu: 14
+luci.ics.uci.edu: 9
+cloudberry.ics.uci.edu: 1
+wics.ics.uci.edu: 4
+grape.ics.uci.edu: 1
+student-council.ics.uci.edu: 1
+computableplant.ics.uci.edu: 5
+asterix.ics.uci.edu: 5
+perennialpolycultures.ics.uci.edu: 1
+netreg.ics.uci.edu: 1
+fr.ics.uci.edu: 2
+tippersweb.ics.uci.edu: 1
+archive.ics.uci.edu: 1
+cwicsocal18.ics.uci.edu: 1
+graphics.ics.uci.edu: 1
+calendar.ics.uci.edu: 1
+cocoa-krispies.ics.uci.edu: 1
+asterixdb.ics.uci.edu: 1
+sprout.ics.uci.edu: 1
+chenli.ics.uci.edu: 1
+sdcl.ics.uci.edu: 1
+se.ics.uci.edu: 1
+jgarcia.ics.uci.edu: 1
+malek.ics.uci.edu: 1
+xtune.ics.uci.edu: 1
+keys.ics.uci.edu: 1
+webmail.ics.uci.edu: 1
+
+
+Longest Page: 
+{'link': 'https://www.ics.uci.edu/~dutt/', 'count': 30446}
+
+
+50 most common words:
+1. s: 9348
+2. bren: 7747
+3. computer: 7368
+4. school: 7351
+5. ics: 7204
+6. uci: 7163
+7. policies: 7031
+8. e: 6325
+9. t: 5614
+10. research: 5550
+11. students: 5337
+12. student: 5307
+13. academic: 4956
+14. n: 4498
+15. o: 4486
+16. m: 4403
+17. information: 4330
+18. events: 4129
+19. l: 4117
+20. contact: 4029
+21. donald: 3971
+22. news: 3843
+23. d: 3765
+24. science: 3455
+25. graduate: 3359
+26. faculty: 3225
+27. p: 3149
+28. r: 2875
+29. computing: 2810
+30. sciences: 2805
+31. irvine: 2718
+32. c: 2687
+33. year: 2336
+34. support: 2203
+35. will: 2174
+36. university: 2147
+37. data: 2142
+38. 2018: 2117
+39. informatics: 2104
+40. systems: 2032
+41. hall: 1924
+42. home: 1876
+43. policy: 1835
+44. f: 1828
+45. plan: 1826
+46. visit: 1800
+47. staff: 1796
+48. gift: 1684
+49. 199: 1681
+50. apply: 1660

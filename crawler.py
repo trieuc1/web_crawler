@@ -32,7 +32,6 @@ class Crawler:
         This method starts the crawling process which is scraping urls from the next available link in frontier and adding
         the scraped links to the frontier
         """
-        
         while self.frontier.has_next_url():
             url = self.frontier.get_next_url()
             logger.info("Fetching URL %s ... Fetched: %s, Queue size: %s", url, self.frontier.fetched, len(self.frontier))
@@ -77,6 +76,8 @@ class Crawler:
         # Analytics #2: getting most valid out links
         with open("analytics.txt", "a", encoding='utf-8') as file:
             file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
+        counter = 0
+        total_link = len(self.frontier.urls_set)
         for link in self.frontier.urls_set:
 
             # -----------Analytics #1----------
@@ -86,8 +87,17 @@ class Crawler:
 
             # ----------Analytics #4--------
             url_data = self.corpus.fetch_url(link)
-            # gets words from the webpage
-            url_text = self.extract_words_generator(url_data).lower().split()
+            url_text_file = self.extract_words_generator(url_data).lower()
+            url_text = []
+            token = ""
+            for letter in url_text_file:
+                if letter.isalnum() and letter.isascii():
+                    token += letter.lower()
+                else:
+                    if len(token) != 0:
+                        # add token to list and reset word
+                        url_text.append(token)
+                        token = ""
             url_text_length = len(url_text)
             
             # finding largest page
@@ -99,10 +109,15 @@ class Crawler:
             
             # accumulating counts for each word from all webpages and adding it to vocabulary
             url_text_set = set(url_text)
+            for word in self.stop_words:
+                url_text_set.discard(word.lower())
             for word in url_text_set:
-                if word not in vocabulary and word not in self.stop_words:
+                if word not in vocabulary:
                     vocabulary[word] = 0
                 vocabulary[word] += url_text.count(word)
+            if counter % 20:
+                print(f'Generating report: {int((counter/total_link)*100)}%     \t--{counter}/{total_link}               ', end='\r')
+            counter += 1
         
         with open("analytics.txt", "a", encoding="utf-8") as file:
 
@@ -282,7 +297,7 @@ class Crawler:
             # if the content isnt similar or the url doesnt have content
             if phrase_similarity_count == 0 or max([len(self.token_dict[parsed]["content"]), len(new_token["content"])]) == 0:
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["count_checks"] >= 10 and self.token_dict[parsed]["blacklist"] <= 2:
+                if self.token_dict[parsed]["count_checks"] >= 6 and self.token_dict[parsed]["blacklist"] <= 2:
                     self.whitelist.add(parsed)
                 self.token_dict[parsed]["count_checks"] += 1
                 return True
@@ -297,46 +312,29 @@ class Crawler:
             if similarity > self.similarity_threshold:
                 self.token_dict[parsed]["blacklist"] += 1
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["blacklist"] >= 10:
+                if self.token_dict[parsed]["blacklist"] >= 6:
                     self.blacklist.add(parsed)
                 return False
             else:
                 # if not that similar
                 self.token_dict[parsed]["count_checks"] += 1
-                if self.token_dict[parsed]["count_checks"] >= 10 and self.token_dict[parsed]["blacklist"] <= 2:
+                if self.token_dict[parsed]["count_checks"] >= 6 and self.token_dict[parsed]["blacklist"] <= 2:
                     self.whitelist.add(parsed)
                     
         else:
             self.token_dict[parsed] = new_token
         return True
 
-        
-    def is_valid(self, url):
+    def check_traps(self, url):
         """
-        Function returns True or False based on whether the url has to be fetched or not. This is a great place to
-        filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
-        in this method
+        Checks for traps
         """
+        self.is_trap = True
         parsed = urlparse(url)
         query_params = parse_qsl(parsed.query)
-        self.is_trap = False
-        try:
-            if ( ".ics.uci.edu" in parsed.hostname \
-                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
-                                    + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
-                                    + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
-                                    + "|thmx|mso|arff|rtf|jar|csv" \
-                                    + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf)$", parsed.path.lower())):
-                pass
-            else:
+        for word in ["action", "session", "session_id", "sessionid", "do", "ucinetid"]:
+            if word in parse_qs(parsed.query):
                 return False
-        except TypeError:
-            #print("TypeError for ", parsed)
-            return False
-        status = True
-        self.is_trap = True
-        if parsed.scheme not in set(["http", "https"]):
-            status = False
         if url in self.check_already:
             self.is_trap = False
             return False
@@ -347,29 +345,24 @@ class Crawler:
             return False
         # not a url
         if " " in url:
-            status = False
+            return False
         # reducing links based on len of the links ~79 avg len of all links
         if len(url) > 80:
-            status = False
+            return False
         # reducing links through parameters
         if len(query_params) > 5:
-            status = False
+            return False
         # if not self.is_valid_path(parsed):
         #     print("valid")
         #     status = False
         # reducing links based on url fragments
         if parsed.fragment in ["content-main"]:
-            status = False
-        for word in ["action", "session", "session_id", "sessionid"]:
-            if word in parse_qs(parsed.query):
-                status = False
+            return False
         subdirectories = parsed.path.lower().split("/")
         for subdir in set(subdirectories):
             if subdirectories.count(subdir) > 3:
-                status = False
+                return False
         if len(parse_qs(parsed.query)) > 3:
-            status = False
-        if status == False:
             return False
         try:
             if self.check_similarity("/".join(parsed.path.split("/")[:-1]), url) == False:
@@ -377,6 +370,35 @@ class Crawler:
                 return False
         except Exception as e:
             print(e)
+            return False
         return True
+        
+    def is_valid(self, url):
+        """
+        Function returns True or False based on whether the url has to be fetched or not. This is a great place to
+        filter out crawler traps. Duplicated urls will be taken care of by frontier. You don't need to check for duplication
+        in this method
+        """
+        parsed = urlparse(url)
+        query_params = parse_qsl(parsed.query)
+        self.is_trap = False
+        if parsed.scheme not in set(["http", "https"]):
+            return False
+        try:
+            if ( ".ics.uci.edu" in parsed.hostname \
+                    and not re.match(".*\.(css|js|bmp|gif|jpe?g|ico" + "|png|tiff?|mid|mp2|mp3|mp4" \
+                                    + "|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf" \
+                                    + "|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|epub|dll|cnf|tgz|sha1" \
+                                    + "|thmx|mso|arff|rtf|jar|csv" \
+                                    + "|rm|smil|wmv|swf|wma|zip|rar|gz|pdf|j_peg.php)$", parsed.path.lower())):
+                pass
+            else:
+                return False
+        except TypeError:
+            #print("TypeError for ", parsed)
+            return False
+        
+        return self.check_traps(url)
+
         
 
