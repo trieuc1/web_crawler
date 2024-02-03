@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html
 from pathlib import Path
 from bs4 import BeautifulSoup
+from nltk.corpus import words
 logger = logging.getLogger(__name__)
 
 class Crawler:
@@ -28,6 +29,7 @@ class Crawler:
         self.removed = set()
         self.check_already = set()
         self.create_stop_words()
+    
 
     def start_crawling(self):
         """
@@ -137,7 +139,10 @@ class Crawler:
             file.write("\n\nSubdomains: Links proccessed\n")
             for subdomain, count in self.subdomains.items():
                 file.write (f"{subdomain}: {count}\n")
-        with open("analytics.txt", "a", encoding="utf-8") as file:
+            
+            # Analytics 2: getting most valid out links
+            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
+
             # Analytics 5: writing to analytics the 50 most common words in all webpages and its count
             sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
             file.write("\n\n50 most common words:\n")
@@ -145,9 +150,32 @@ class Crawler:
             for word, count in sorted_vocab.items():
                 if counter == 51:
                     break
-                file.write(f"{counter}. {word}: {count}\n")
-                counter += 1
-        
+
+                if len(word) == 1 or word.isdigit():
+                    continue
+
+                if len(word) < 3:
+                    if word not in self.stop_words and word in words.words():
+                        file.write(f"{counter}. {word}: {count}\n")
+                        counter += 1
+                else:
+                    file.write(f"{counter}. {word}: {count}\n")
+                    counter +=1
+
+            # Analytics 3: List of downloaded and list of identified traps
+            file.write("\n\nList of downloaded urls:\n")
+            for i in self.downloaded:
+                file.write(f"URL: {i}\n")
+            
+            file.write("\n\nList of identified trap urls:\n")
+            for i in self.removed:
+                file.write(f"URL: {i}\n")
+
+            # Analytics 4: writing to analytics page the longest page url and its count
+            file.write(f"\n\nLongest Page: \n{longest_page}\n")
+
+    
+
     def extract_next_links(self, url_data):
         """
         The url_data coming from the fetch_url method will be given as a parameter to this method. url_data contains the
