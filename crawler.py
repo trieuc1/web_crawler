@@ -119,7 +119,7 @@ class Crawler:
                 print(f'Generating report: {int((counter/total_link)*100)}%     \t--{counter}/{total_link}               ', end='\r')
             counter += 1
         
-        with open("analytics.txt", "a", encoding="utf-8") as file:
+        with open("analytics.txt", "w", encoding="utf-8") as file:
 
             # Analytics 1: writing to file the subdomains and number of links
             file.write("\n\nSubdomains: Links proccessed\n")
@@ -128,18 +128,6 @@ class Crawler:
             
             # Analytics 2: getting most valid out links
             file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
-
-            # Analytics 3: List of downloaded and list of identified traps
-            file.write("\n\nList of downloaded urls:\n")
-            for i in self.downloaded:
-                file.write(f"URL: {i}\n")
-            
-            file.write("\n\nList of identified trap urls:\n")
-            for i in self.removed:
-                file.write(f"URL: {i}\n")
-
-            # Analytics 4: writing to analytics page the longest page url and its count
-            file.write(f"\n\nLongest Page: \n{longest_page}\n")
 
             # Analytics 5: writing to analytics the 50 most common words in all webpages and its count
             sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
@@ -159,6 +147,19 @@ class Crawler:
                 else:
                     file.write(f"{counter}. {word}: {count}\n")
                     counter +=1
+
+            # Analytics 3: List of downloaded and list of identified traps
+            file.write("\n\nList of downloaded urls:\n")
+            for i in self.downloaded:
+                file.write(f"URL: {i}\n")
+            
+            file.write("\n\nList of identified trap urls:\n")
+            for i in self.removed:
+                file.write(f"URL: {i}\n")
+
+            # Analytics 4: writing to analytics page the longest page url and its count
+            file.write(f"\n\nLongest Page: \n{longest_page}\n")
+
     
 
     def extract_next_links(self, url_data):
