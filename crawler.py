@@ -4,7 +4,6 @@ from urllib.parse import parse_qs, urlparse, urljoin, parse_qsl, urlunparse
 from lxml import html
 from pathlib import Path
 from bs4 import BeautifulSoup
-from nltk.corpus import words
 logger = logging.getLogger(__name__)
 
 class Crawler:
@@ -90,9 +89,6 @@ class Crawler:
             file.write("\n\nList of identified trap urls:\n")
             for i in self.removed:
                 file.write(f"URL: {i}\n")
-        with open("analytics.txt", "a", encoding="utf-8") as file:
-            # Analytics 4: writing to analytics page the longest page url and its count
-            file.write(f"\n\nLongest Page: \n{longest_page}\n")
         for link in self.frontier.urls_set:
 
             # -----------Analytics #1----------
@@ -104,45 +100,52 @@ class Crawler:
             url_data = self.corpus.fetch_url(link)
             if url_data["content_type"] is None:
                 continue
-            url_text_file = self.extract_words_generator(url_data).lower()
-            url_text = []
-            token = ""
-            for letter in url_text_file:
-                if letter.isalnum() and letter.isascii():
-                    token += letter.lower()
-                else:
-                    if len(token) != 0:
-                        # add token to list and reset word
-                        url_text.append(token)
-                        token = ""
-            url_text_length = len(url_text)
-            
-            # finding largest page
-            if url_text_length > longest_page["count"]:
-                longest_page = {
-                    "link": link,
-                    "count": url_text_length
-                }
-            
-            # accumulating counts for each word from all webpages and adding it to vocabulary
-            url_text_set = set(url_text)
-            for word in self.stop_words:
-                url_text_set.discard(word.lower())
-            for word in url_text_set:
-                if word not in vocabulary:
-                    vocabulary[word] = 0
-                vocabulary[word] += url_text.count(word)
+            else:
+                url_text_file = self.extract_words_generator(url_data).lower()
+                if len(url_text_file) == 0:
+                    continue
+                url_text = []
+                token = ""
+                for letter in url_text_file:
+                    if letter.isalnum() and letter.isascii():
+                        token += letter.lower()
+                    else:
+                        if len(token) != 0:
+                            # add token to list and reset word
+                            url_text.append(token)
+                            token = ""
+                url_text_length = len(url_text)
+                
+                # finding largest page
+                if url_text_length > longest_page["count"]:
+                    longest_page = {
+                        "link": link,
+                        "count": url_text_length
+                    }
+                
+                # accumulating counts for each word from all webpages and adding it to vocabulary
+                url_text_set = set(url_text)
+                for word in self.stop_words:
+                    url_text_set.discard(word.lower())
+                for word in url_text:
+                    if word in url_text_set:
+                        if word not in vocabulary:
+                            vocabulary[word] = 0
+                        vocabulary[word] += 1
             print(f'Generating report: {int((counter/total_link)*100)}%     \t--{counter}/{total_link}', end='\r')
             counter += 1
+
         with open("analytics.txt", "a", encoding="utf-8") as file:
             # Analytics 1: writing to file the subdomains and number of links
             file.write("\n\nSubdomains: Links proccessed\n")
             for subdomain, count in self.subdomains.items():
                 file.write (f"{subdomain}: {count}\n")
-            
-            # Analytics 2: getting most valid out links
-            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
 
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            # Analytics 4: writing to analytics page the longest page url and its count
+            file.write(f"\n\nLongest Page: \n{longest_page}\n")            
+        
+        with open("analytics.txt", "a", encoding="utf-8") as file:
             # Analytics 5: writing to analytics the 50 most common words in all webpages and its count
             sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
             file.write("\n\n50 most common words:\n")
@@ -150,29 +153,8 @@ class Crawler:
             for word, count in sorted_vocab.items():
                 if counter == 51:
                     break
-
-                if len(word) == 1 or word.isdigit():
-                    continue
-
-                if len(word) < 3:
-                    if word not in self.stop_words and word in words.words():
-                        file.write(f"{counter}. {word}: {count}\n")
-                        counter += 1
-                else:
-                    file.write(f"{counter}. {word}: {count}\n")
-                    counter +=1
-
-            # Analytics 3: List of downloaded and list of identified traps
-            file.write("\n\nList of downloaded urls:\n")
-            for i in self.downloaded:
-                file.write(f"URL: {i}\n")
-            
-            file.write("\n\nList of identified trap urls:\n")
-            for i in self.removed:
-                file.write(f"URL: {i}\n")
-
-            # Analytics 4: writing to analytics page the longest page url and its count
-            file.write(f"\n\nLongest Page: \n{longest_page}\n")
+                file.write(f"{counter}. {word}: {count}\n")
+                counter +=1
 
     
 
@@ -215,7 +197,8 @@ class Crawler:
         """
         try:
             return BeautifulSoup(url_data["content"], "lxml").get_text()
-        except:
+        except Exception as e:
+            print(e)
             return ""
     
 
