@@ -24,8 +24,8 @@ class Crawler:
         self.page_most_links = {"link": "", "count": 0}
         self.subdomains = {}
         self.is_trap = False
-        self.downloaded = []
-        self.removed = []
+        self.downloaded = set()
+        self.removed = set()
         self.check_already = set()
         self.create_stop_words()
 
@@ -41,16 +41,16 @@ class Crawler:
             url_data = self.corpus.fetch_url(url)
             # number of links that were able to fetched from the url
             valid_links_counter = 0
+            self.downloaded.add(url)
             # Write links downloaded.txt
             for next_link in set(self.extract_next_links(url_data)):
                 validity = self.is_valid(next_link)
                 if validity:
                     if self.corpus.get_file_name(next_link) is not None:
-                        self.downloaded.append(next_link)
                         self.frontier.add_url(next_link)
                         valid_links_counter += 1
                 else:
-                    self.removed.append(next_link)
+                    self.removed.add(next_link)
             # update link with the most valid links out
             if valid_links_counter > self.page_most_links["count"]:
                 self.page_most_links = {
@@ -76,6 +76,21 @@ class Crawler:
         vocabulary = {}
         counter = 0
         total_link = len(self.frontier.urls_set)
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            # Analytics 2: getting most valid out links
+            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            # Analytics 3: List of downloaded and list of identified traps
+            file.write("\n\nList of downloaded urls:\n")
+            for i in self.downloaded:
+                file.write(f"URL: {i}\n")
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            file.write("\n\nList of identified trap urls:\n")
+            for i in self.removed:
+                file.write(f"URL: {i}\n")
+        with open("analytics.txt", "a", encoding="utf-8") as file:
+            # Analytics 4: writing to analytics page the longest page url and its count
+            file.write(f"\n\nLongest Page: \n{longest_page}\n")
         for link in self.frontier.urls_set:
 
             # -----------Analytics #1----------
@@ -85,6 +100,8 @@ class Crawler:
 
             # ----------Analytics #4--------
             url_data = self.corpus.fetch_url(link)
+            if url_data["content_type"] is None:
+                continue
             url_text_file = self.extract_words_generator(url_data).lower()
             url_text = []
             token = ""
@@ -113,32 +130,14 @@ class Crawler:
                 if word not in vocabulary:
                     vocabulary[word] = 0
                 vocabulary[word] += url_text.count(word)
-            if counter % 20:
-                print(f'Generating report: {int((counter/total_link)*100)}%     \t--{counter}/{total_link}               ', end='\r')
+            print(f'Generating report: {int((counter/total_link)*100)}%     \t--{counter}/{total_link}', end='\r')
             counter += 1
-        
         with open("analytics.txt", "a", encoding="utf-8") as file:
-
             # Analytics 1: writing to file the subdomains and number of links
             file.write("\n\nSubdomains: Links proccessed\n")
             for subdomain, count in self.subdomains.items():
                 file.write (f"{subdomain}: {count}\n")
-            
-            # Analytics 2: getting most valid out links
-            file.write(f"Link with the most valid out links:\n{self.page_most_links}\n")
-
-            # Analytics 3: List of downloaded and list of identified traps
-            file.write("\n\nList of downloaded urls:\n")
-            for i in self.downloaded:
-                file.write(f"URL: {i}\n")
-            
-            file.write("\n\nList of identified trap urls:\n")
-            for i in self.removed:
-                file.write(f"URL: {i}\n")
-
-            # Analytics 4: writing to analytics page the longest page url and its count
-            file.write(f"\n\nLongest Page: \n{longest_page}\n")
-
+        with open("analytics.txt", "a", encoding="utf-8") as file:
             # Analytics 5: writing to analytics the 50 most common words in all webpages and its count
             sorted_vocab = dict(sorted(vocabulary.items(), key=lambda x: x[1], reverse=True))
             file.write("\n\n50 most common words:\n")
